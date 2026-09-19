@@ -72,3 +72,75 @@ TRANSLATIONS = {
         "sim_view": "Simulated: View"
     }
 }
+
+
+# --- LÓGICA---
+
+def cargar_configuracion(ruta_archivo):
+    ruta = ruta_archivo
+
+    if not os.path.exists(ruta):
+        messagebox.showinfo("Archivo Ausente",
+                            f"No se encontró el archivo '{ruta}'.\nSe iniciará con los valores por defecto.")
+        return DEFAULT_CONFIG.copy()
+
+    try:
+        with open(ruta, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            for key in DEFAULT_CONFIG:
+                if key not in data:
+                    data[key] = DEFAULT_CONFIG[key]
+            return data
+
+    except json.JSONDecodeError:
+        messagebox.showerror("Error de Formato",
+                             f"El archivo '{ruta}' está corrupto o tiene un formato inválido.\nSe usarán los valores por defecto para evitar caídas.")
+        return DEFAULT_CONFIG.copy()
+
+    except PermissionError:
+        messagebox.showerror("Error de Permisos",
+                             f"No tienes permisos de lectura para el archivo '{ruta}'.\nSe usarán valores por defecto.")
+        return DEFAULT_CONFIG.copy()
+
+    except Exception as e:
+        messagebox.showerror("Error Inesperado",
+                             f"Ocurrió un error al cargar: {str(e)}\nSe usarán valores por defecto.")
+        return DEFAULT_CONFIG.copy()
+
+
+def guardar_configuracion(nueva_config):
+
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as original, \
+                    open(BACKUP_FILE, "w", encoding="utf-8") as backup:
+                for linea in original:
+                    backup.write(linea)
+        except PermissionError:
+            messagebox.showerror("Error de Permisos",
+                                 f"No hay permisos para modificar el archivo de respaldo en '{BACKUP_FILE}'.")
+            return False
+        except Exception as e:
+            messagebox.showerror("Error de Respaldo", f"Error al actualizar respaldo: {str(e)}")
+            return False
+
+    try:
+        with open(TEMP_FILE, "w", encoding="utf-8") as temporal:
+            json.dump(nueva_config, temporal, indent=4, ensure_ascii=False)
+    except PermissionError:
+        messagebox.showerror("Error de Permisos", f"No hay permisos para escribir el archivo temporal '{TEMP_FILE}'.")
+        return False
+    except Exception as e:
+        messagebox.showerror("Error de Escritura", f"Error durante la escritura del temporal: {str(e)}")
+        return False
+
+    try:
+        os.replace(TEMP_FILE, CONFIG_FILE)
+        return True
+    except PermissionError:
+        messagebox.showerror("Error de Permisos", f"No hay permisos para reemplazar el archivo final '{CONFIG_FILE}'.")
+        return False
+    except Exception as e:
+        messagebox.showerror("Error al Reemplazar", f"Error al guardar el archivo final: {str(e)}")
+        return False
+
