@@ -272,3 +272,130 @@ class SettingsWindow(ctk.CTkToplevel):
                                 f"Configuración guardada exitosamente en:\n{CONFIG_FILE}\n\nRespaldo (.bak) actualizado en la carpeta del programa.")
             self.callback_guardado(self.current_config)
             self.destroy()
+class MainApp(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+        self.geometry("700x500")
+
+        self.config = DEFAULT_CONFIG.copy()
+        self.configurar_interfaz()
+        self.aplicar_configuracion()
+
+        self.after(200, self.flujo_inicio)
+
+    def flujo_inicio(self):
+        global CONFIG_FILE, TEMP_FILE, BACKUP_FILE
+
+        cargar_manual = messagebox.askyesno(
+            "Carga Inicial",
+            "¿Desea buscar y cargar un archivo de configuración manualmente?\n\nSi elige 'No', se iniciará la aplicación directamente con los valores por defecto.",
+            parent=self
+        )
+
+        if cargar_manual:
+            ruta_seleccionada = filedialog.askopenfilename(
+                title="Seleccionar archivo de configuración",
+                filetypes=[("Archivo JSON", "*.json"), ("Todos los archivos", "*.*")],
+                parent=self
+            )
+            if ruta_seleccionada:
+                base_path, _ = os.path.splitext(ruta_seleccionada)
+
+                CONFIG_FILE = ruta_seleccionada
+                TEMP_FILE = base_path + ".tmp"
+                BACKUP_FILE = os.path.join(PROGRAM_DIR, "estilos.bak")
+
+                self.config = cargar_configuracion(ruta_seleccionada)
+                self.aplicar_configuracion()
+                return
+
+        CONFIG_FILE = os.path.join(PROGRAM_DIR, "estilos.json")
+        TEMP_FILE = os.path.join(PROGRAM_DIR, "estilos.tmp")
+        BACKUP_FILE = os.path.join(PROGRAM_DIR, "estilos.bak")
+
+        messagebox.showinfo("Valores por defecto", "Iniciando con los valores de configuración por defecto.",
+                            parent=self)
+        self.config = DEFAULT_CONFIG.copy()
+        self.aplicar_configuracion()
+
+    def configurar_interfaz(self):
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+
+        self.menu_frame = ctk.CTkFrame(self, height=40, corner_radius=0)
+        self.menu_frame.grid(row=0, column=0, sticky="new")
+
+        self.btn_file = ctk.CTkButton(self.menu_frame, width=60, fg_color="transparent")
+        self.btn_file.pack(side="left", padx=5, pady=5)
+
+        self.btn_edit = ctk.CTkButton(self.menu_frame, width=60, fg_color="transparent")
+        self.btn_edit.pack(side="left", padx=5, pady=5)
+
+        self.btn_view = ctk.CTkButton(self.menu_frame, width=60, fg_color="transparent")
+        self.btn_view.pack(side="left", padx=5, pady=5)
+
+        self.btn_settings = ctk.CTkButton(self.menu_frame, text="Settings \u2699", width=80, fg_color="#333",
+                                          hover_color="#555", command=self.abrir_ajustes)
+        self.btn_settings.pack(side="right", padx=10, pady=5)
+
+        self.main_frame = ctk.CTkFrame(self)
+        self.main_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=20)
+
+        self.lbl_bienvenida = ctk.CTkLabel(self.main_frame, text="")
+        self.lbl_bienvenida.pack(expand=True, pady=(20, 0))
+
+        self.lbl_foto = ctk.CTkLabel(self.main_frame, text="")
+        self.lbl_foto.pack(expand=True, pady=(0, 20))
+
+    def aplicar_configuracion(self):
+
+        lang = self.config.get("idioma", "es/es-ES")
+        t = TRANSLATIONS.get(lang, TRANSLATIONS["es/es-ES"])
+
+        self.title(t["title_main"])
+
+        self.btn_file.configure(text=t["menu_file"], command=lambda: print(t["sim_file"]))
+        self.btn_edit.configure(text=t["menu_edit"], command=lambda: print(t["sim_edit"]))
+        self.btn_view.configure(text=t["menu_view"], command=lambda: print(t["sim_view"]))
+
+        if self.config["tema"] == "claro":
+            ctk.set_appearance_mode("light")
+        else:
+            ctk.set_appearance_mode("dark")
+
+        self.menu_frame.configure(fg_color=self.config["color_menu"])
+
+        fuente = ("Helvetica", self.config["tamano_fuente"])
+        texto_bienvenida = t["welcome"].format(name=self.config['nombre_usuario'], lang=self.config['idioma'])
+
+        self.lbl_bienvenida.configure(
+            text=texto_bienvenida,
+            font=fuente,
+            text_color=self.config["color_letra"]
+        )
+
+        ruta_foto = self.config["foto_perfil"]
+        if ruta_foto and os.path.exists(ruta_foto):
+            try:
+                img = Image.open(ruta_foto)
+                img = img.resize((150, 150))
+                ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(150, 150))
+                self.lbl_foto.configure(image=ctk_img, text="")
+            except UnidentifiedImageError:
+                self.lbl_foto.configure(image="", text=t["invalid_pic"])
+            except Exception:
+                self.lbl_foto.configure(image="", text=t["error_pic"])
+        else:
+            self.lbl_foto.configure(image="", text=t["no_pic"])
+
+    def abrir_ajustes(self):
+        SettingsWindow(self, self.config, self.al_guardar_ajustes)
+
+    def al_guardar_ajustes(self, nueva_config):
+        self.config = nueva_config
+        self.aplicar_configuracion()
+
+
+if __name__ == "__main__":
+    app = MainApp()
+    app.mainloop()
