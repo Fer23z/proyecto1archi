@@ -144,3 +144,131 @@ def guardar_configuracion(nueva_config):
         messagebox.showerror("Error al Reemplazar", f"Error al guardar el archivo final: {str(e)}")
         return False
 
+
+# --- INTERFAZ GRÁFICA ---
+
+class SettingsWindow(ctk.CTkToplevel):
+    def __init__(self, parent, current_config, callback_guardado):
+        super().__init__(parent)
+        self.geometry("500x600")
+        self.current_config = current_config.copy()
+        self.callback_guardado = callback_guardado
+
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=2)
+
+        self.lbl_name = ctk.CTkLabel(self)
+        self.lbl_name.grid(row=0, column=0, padx=20, pady=10, sticky="w")
+        self.entry_nombre = ctk.CTkEntry(self)
+        self.entry_nombre.insert(0, self.current_config["nombre_usuario"])
+        self.entry_nombre.grid(row=0, column=1, padx=20, pady=10, sticky="ew")
+
+        self.lbl_theme = ctk.CTkLabel(self)
+        self.lbl_theme.grid(row=1, column=0, padx=20, pady=10, sticky="w")
+        self.combo_tema = ctk.CTkComboBox(self, values=["claro", "oscuro"])
+        self.combo_tema.set(self.current_config["tema"])
+        self.combo_tema.grid(row=1, column=1, padx=20, pady=10, sticky="ew")
+
+        self.lbl_lang = ctk.CTkLabel(self)
+        self.lbl_lang.grid(row=2, column=0, padx=20, pady=10, sticky="w")
+        self.combo_idioma = ctk.CTkComboBox(self, values=["es/es-ES", "en/en-US"], command=self.actualizar_textos)
+        self.combo_idioma.set(self.current_config["idioma"])
+        self.combo_idioma.grid(row=2, column=1, padx=20, pady=10, sticky="ew")
+
+        self.lbl_font = ctk.CTkLabel(self)
+        self.lbl_font.grid(row=3, column=0, padx=20, pady=10, sticky="w")
+        self.entry_fuente = ctk.CTkEntry(self)
+        self.entry_fuente.insert(0, str(self.current_config["tamano_fuente"]))
+        self.entry_fuente.grid(row=3, column=1, padx=20, pady=10, sticky="ew")
+
+        self.lbl_menu_color = ctk.CTkLabel(self)
+        self.lbl_menu_color.grid(row=4, column=0, padx=20, pady=10, sticky="w")
+        self.btn_color_menu = ctk.CTkButton(self, fg_color=self.current_config["color_menu"],
+                                            command=self.elegir_color_menu)
+        self.btn_color_menu.grid(row=4, column=1, padx=20, pady=10, sticky="ew")
+
+        self.lbl_text_color = ctk.CTkLabel(self)
+        self.lbl_text_color.grid(row=5, column=0, padx=20, pady=10, sticky="w")
+        self.btn_color_letra = ctk.CTkButton(self, fg_color=self.current_config["color_letra"],
+                                             command=self.elegir_color_letra)
+        self.btn_color_letra.grid(row=5, column=1, padx=20, pady=10, sticky="ew")
+
+        self.lbl_pic = ctk.CTkLabel(self)
+        self.lbl_pic.grid(row=6, column=0, padx=20, pady=10, sticky="w")
+        self.btn_foto = ctk.CTkButton(self, command=self.elegir_foto_perfil)
+        self.btn_foto.grid(row=6, column=1, padx=20, pady=10, sticky="ew")
+
+        self.lbl_ruta_foto = ctk.CTkLabel(self, text=self.current_config["foto_perfil"] or "Ninguna",
+                                          font=("Arial", 10))
+        self.lbl_ruta_foto.grid(row=7, column=1, padx=20, pady=0, sticky="ew")
+
+        self.btn_guardar = ctk.CTkButton(self, command=self.guardar_ajustes, fg_color="green", hover_color="darkgreen")
+        self.btn_guardar.grid(row=8, column=0, columnspan=2, padx=20, pady=30, sticky="ew")
+
+        self.actualizar_textos()
+
+        self.transient(parent)
+        self.grab_set()
+
+    def actualizar_textos(self, event=None):
+        lang = self.combo_idioma.get()
+        t = TRANSLATIONS.get(lang, TRANSLATIONS["es/es-ES"])
+
+        self.title(t["title_settings"])
+        self.lbl_name.configure(text=t["lbl_name"])
+        self.lbl_theme.configure(text=t["lbl_theme"])
+        self.lbl_lang.configure(text=t["lbl_lang"])
+        self.lbl_font.configure(text=t["lbl_font"])
+        self.lbl_menu_color.configure(text=t["lbl_menu_color"])
+        self.lbl_text_color.configure(text=t["lbl_text_color"])
+        self.lbl_pic.configure(text=t["lbl_pic"])
+        self.btn_color_menu.configure(text=t["btn_color"])
+        self.btn_color_letra.configure(text=t["btn_color"])
+        self.btn_foto.configure(text=t["btn_img"])
+        self.btn_guardar.configure(text=t["btn_save"])
+
+        # Traducir el texto de "Ninguna" o "None" si no hay foto
+        if self.lbl_ruta_foto.cget("text") in ["Ninguna", "None"]:
+            self.lbl_ruta_foto.configure(text=t["lbl_none"])
+
+    def elegir_color_menu(self):
+        color_code = colorchooser.askcolor(title="Elige color de menú", initialcolor=self.current_config["color_menu"])[
+            1]
+        if color_code:
+            self.current_config["color_menu"] = color_code
+            self.btn_color_menu.configure(fg_color=color_code)
+
+    def elegir_color_letra(self):
+        color_code = \
+        colorchooser.askcolor(title="Elige color de letra", initialcolor=self.current_config["color_letra"])[1]
+        if color_code:
+            self.current_config["color_letra"] = color_code
+            self.btn_color_letra.configure(fg_color=color_code)
+
+    def elegir_foto_perfil(self):
+        file_path = filedialog.askopenfilename(
+            title="Seleccionar Foto de Perfil",
+            filetypes=[("Imágenes", "*.png *.jpg *.jpeg *.bmp *.gif"), ("Todos los archivos", "*.*")]
+        )
+        if file_path:
+            self.current_config["foto_perfil"] = file_path
+            self.lbl_ruta_foto.configure(text=file_path)
+
+    def guardar_ajustes(self):
+        try:
+            fuente_int = int(self.entry_fuente.get())
+            if fuente_int <= 0: raise ValueError
+            self.current_config["tamano_fuente"] = fuente_int
+        except ValueError:
+            messagebox.showerror("Error de Formato", "El tamaño de fuente debe ser un número entero positivo.")
+            return
+
+        self.current_config["nombre_usuario"] = self.entry_nombre.get()
+        self.current_config["tema"] = self.combo_tema.get()
+        self.current_config["idioma"] = self.combo_idioma.get()
+
+        if guardar_configuracion(self.current_config):
+            messagebox.showinfo("Éxito",
+                                f"Configuración guardada exitosamente en:\n{CONFIG_FILE}\n\nRespaldo (.bak) actualizado en la carpeta del programa.")
+            self.callback_guardado(self.current_config)
+            self.destroy()
